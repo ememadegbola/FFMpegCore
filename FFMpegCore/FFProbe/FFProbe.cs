@@ -30,24 +30,13 @@ public static class FFProbe
         string? customArguments = null)
     {
         ThrowIfInputFileDoesNotExist(filePath);
-
-        var instance = PrepareStreamAnalysisInstance(filePath, ffOptions ?? GlobalFFOptions.Current, customArguments);
-        var result = await instance.StartAndWaitForExitAsync(cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        ThrowIfExitCodeNotZero(result);
-
-        return ParseOutput(result);
+        return await AnalyseCoreAsync(filePath, ffOptions, cancellationToken, customArguments).ConfigureAwait(false);
     }
 
     public static async Task<IMediaAnalysis> AnalyseAsync(Uri uri, FFOptions? ffOptions = null, CancellationToken cancellationToken = default,
         string? customArguments = null)
     {
-        var instance = PrepareStreamAnalysisInstance(uri.AbsoluteUri, ffOptions ?? GlobalFFOptions.Current, customArguments);
-        var result = await instance.StartAndWaitForExitAsync(cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        ThrowIfExitCodeNotZero(result);
-
-        return ParseOutput(result);
+        return await AnalyseCoreAsync(uri.AbsoluteUri, ffOptions, cancellationToken, customArguments).ConfigureAwait(false);
     }
 
     public static async Task<IMediaAnalysis> AnalyseAsync(Stream stream, FFOptions? ffOptions = null, CancellationToken cancellationToken = default,
@@ -55,10 +44,10 @@ public static class FFProbe
     {
         var streamPipeSource = new StreamPipeSource(stream);
         var pipeArgument = new InputPipeArgument(streamPipeSource);
-        var instance = PrepareStreamAnalysisInstance(pipeArgument.PipePath, ffOptions ?? GlobalFFOptions.Current, customArguments);
-        pipeArgument.Pre();
 
-        var task = instance.StartAndWaitForExitAsync(cancellationToken);
+        var task = AnalyseCoreAsync(pipeArgument.PipePath, ffOptions ?? GlobalFFOptions.Current, cancellationToken, customArguments);
+
+        pipeArgument.Pre();
         try
         {
             await pipeArgument.During(cancellationToken).ConfigureAwait(false);
@@ -71,12 +60,7 @@ public static class FFProbe
             pipeArgument.Post();
         }
 
-        var result = await task.ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        ThrowIfExitCodeNotZero(result);
-
-        pipeArgument.Post();
-        return ParseOutput(result);
+        return await task.ConfigureAwait(false);
     }
 
     public static FFProbeFrames GetFrames(string filePath, FFOptions? ffOptions = null, string? customArguments = null)
@@ -98,18 +82,13 @@ public static class FFProbe
         string? customArguments = null)
     {
         ThrowIfInputFileDoesNotExist(filePath);
-
-        var instance = PrepareFrameAnalysisInstance(filePath, ffOptions ?? GlobalFFOptions.Current, customArguments);
-        var result = await instance.StartAndWaitForExitAsync(cancellationToken).ConfigureAwait(false);
-        return ParseFramesOutput(result);
+        return await GetFramesCoreAsync(filePath, ffOptions, cancellationToken, customArguments).ConfigureAwait(false);
     }
 
     public static async Task<FFProbeFrames> GetFramesAsync(Uri uri, FFOptions? ffOptions = null, CancellationToken cancellationToken = default,
         string? customArguments = null)
     {
-        var instance = PrepareFrameAnalysisInstance(uri.AbsoluteUri, ffOptions ?? GlobalFFOptions.Current, customArguments);
-        var result = await instance.StartAndWaitForExitAsync(cancellationToken).ConfigureAwait(false);
-        return ParseFramesOutput(result);
+        return await GetFramesCoreAsync(uri.AbsoluteUri, ffOptions, cancellationToken, customArguments).ConfigureAwait(false);
     }
 
     public static async Task<FFProbeFrames> GetFramesAsync(Stream stream, FFOptions? ffOptions = null, CancellationToken cancellationToken = default,
@@ -117,10 +96,10 @@ public static class FFProbe
     {
         var streamPipeSource = new StreamPipeSource(stream);
         var pipeArgument = new InputPipeArgument(streamPipeSource);
-        var instance = PrepareFrameAnalysisInstance(pipeArgument.PipePath, ffOptions ?? GlobalFFOptions.Current, customArguments);
-        pipeArgument.Pre();
 
-        var task = instance.Start().WaitForExitAsync(cancellationToken);
+        var task = GetFramesCoreAsync(pipeArgument.PipePath, ffOptions ?? GlobalFFOptions.Current, cancellationToken, customArguments);
+
+        pipeArgument.Pre();
         try
         {
             await pipeArgument.During(cancellationToken).ConfigureAwait(false);
@@ -131,7 +110,24 @@ public static class FFProbe
             pipeArgument.Post();
         }
 
-        var result = task.ConfigureAwait(false).GetAwaiter().GetResult();
+        return await task.ConfigureAwait(false);
+    }
+
+    private static async Task<IMediaAnalysis> AnalyseCoreAsync(string inputPath, FFOptions? ffOptions, CancellationToken cancellationToken, string? customArguments)
+    {
+        var instance = PrepareStreamAnalysisInstance(inputPath, ffOptions ?? GlobalFFOptions.Current, customArguments);
+        var result = await instance.StartAndWaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        ThrowIfExitCodeNotZero(result);
+
+        return ParseOutput(result);
+    }
+
+    private static async Task<FFProbeFrames> GetFramesCoreAsync(string inputPath, FFOptions? ffOptions, CancellationToken cancellationToken, string? customArguments)
+    {
+        var instance = PrepareFrameAnalysisInstance(inputPath, ffOptions ?? GlobalFFOptions.Current, customArguments);
+        var result = await instance.StartAndWaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         ThrowIfExitCodeNotZero(result);
 
         return ParseFramesOutput(result);
