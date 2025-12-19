@@ -22,6 +22,11 @@ public static class FFProbe
         return ParseOutput(result);
     }
 
+    public static FFProbeFrames GetFrames(Stream stream, FFOptions? ffOptions = null, string? customArguments = null)
+    {
+        return GetFramesAsync(stream, ffOptions, CancellationToken.None, customArguments).ConfigureAwait(false).GetAwaiter().GetResult();
+    }
+
     public static FFProbeFrames GetFrames(string filePath, FFOptions? ffOptions = null, string? customArguments = null)
     {
         ThrowIfInputFileDoesNotExist(filePath);
@@ -164,6 +169,31 @@ public static class FFProbe
     {
         var instance = PrepareFrameAnalysisInstance(uri.AbsoluteUri, ffOptions ?? GlobalFFOptions.Current, customArguments);
         var result = await instance.StartAndWaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        return ParseFramesOutput(result);
+    }
+
+    public static async Task<FFProbeFrames> GetFramesAsync(Stream stream, FFOptions? ffOptions = null, CancellationToken cancellationToken = default,
+        string? customArguments = null)
+    {
+        var streamPipeSource = new StreamPipeSource(stream);
+        var pipeArgument = new InputPipeArgument(streamPipeSource);
+        var instance = PrepareFrameAnalysisInstance(pipeArgument.PipePath, ffOptions ?? GlobalFFOptions.Current, customArguments);
+        pipeArgument.Pre();
+
+        var task = instance.Start().WaitForExitAsync(cancellationToken);
+        try
+        {
+            await pipeArgument.During(cancellationToken).ConfigureAwait(false);
+        }
+        catch (IOException) { }
+        finally
+        {
+            pipeArgument.Post();
+        }
+
+        var result = task.ConfigureAwait(false).GetAwaiter().GetResult();
+        ThrowIfExitCodeNotZero(result);
+
         return ParseFramesOutput(result);
     }
 
