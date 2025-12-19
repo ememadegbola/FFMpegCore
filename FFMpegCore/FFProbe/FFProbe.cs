@@ -36,7 +36,7 @@ public static class FFProbe
     public static async Task<IMediaAnalysis> AnalyseAsync(Uri uri, FFOptions? ffOptions = null, CancellationToken cancellationToken = default,
         string? customArguments = null)
     {
-        return await AnalyseCoreAsync(uri.AbsoluteUri, ffOptions, cancellationToken, customArguments).ConfigureAwait(false);
+        return await AnalyseCoreAsync(uri.IsFile ? uri.LocalPath : uri.AbsoluteUri, ffOptions, cancellationToken, customArguments).ConfigureAwait(false);
     }
 
     public static async Task<IMediaAnalysis> AnalyseAsync(Stream stream, FFOptions? ffOptions = null, CancellationToken cancellationToken = default,
@@ -88,7 +88,7 @@ public static class FFProbe
     public static async Task<FFProbeFrames> GetFramesAsync(Uri uri, FFOptions? ffOptions = null, CancellationToken cancellationToken = default,
         string? customArguments = null)
     {
-        return await GetFramesCoreAsync(uri.AbsoluteUri, ffOptions, cancellationToken, customArguments).ConfigureAwait(false);
+        return await GetFramesCoreAsync(uri.IsFile ? uri.LocalPath : uri.AbsoluteUri, ffOptions, cancellationToken, customArguments).ConfigureAwait(false);
     }
 
     public static async Task<FFProbeFrames> GetFramesAsync(Stream stream, FFOptions? ffOptions = null, CancellationToken cancellationToken = default,
